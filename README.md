@@ -1,4 +1,13 @@
-# SaneSideButtons
+# Why this fork? 🤔
+I needed something to fix my `Razer Orochi v2` which started to double click basically every button after a year of use (shame on you Razer).
+
+I was already using [SensibleSideButtons](https://github.com/archagon/sensible-side-buttons) by [Alexei Baboulevitch](https://github.com/archagon) and I wanted to add **_debouncing_** to it, but the project is abandoned for a while and I didn't want to maintain it in Objective-C.
+
+I thought about rewriting the parts I was interested in but then I found [SaneSideButtons](https://github.com/thealpa/SaneSideButtons) by [Jan Hülsmann](https://github.com/thealpa) which had already done the hardest part.
+
+This fork is for my personal use, but if you have the same problem and don't want to compile it yourself, feel free to open an issue on this repository and I can provide you a working build.
+
+# SaneSideButtons (original)
 <p align="center">
 	<img src="icon.png" width=150 />
 </p>

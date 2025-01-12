@@ -63,13 +63,21 @@ final class SwipeSimulator {
         return !ignoredApplications.contains(frontAppBundleID)
     }
 
+    private let eventTypes: [CGEventType] = [
+        .leftMouseDown,
+        .leftMouseUp,
+        .rightMouseDown,
+        .rightMouseUp,
+        .otherMouseDown,
+        .otherMouseUp,
+    ]
+
     func setupEventTap() throws {
         guard !self.eventTapIsRunning else { return }
-        let eventMask = CGEventMask(1 << CGEventType.otherMouseDown.rawValue | 1 << CGEventType.otherMouseUp.rawValue)
         guard let eventTap = CGEvent.tapCreate(tap: .cghidEventTap,
                                                place: .headInsertEventTap,
                                                options: .defaultTap,
-                                               eventsOfInterest: eventMask,
+                                               eventsOfInterest: .from(events: eventTypes),
                                                callback: mouseEventCallBack,
                                                userInfo: nil) else {
             self.eventTapIsRunning = false
@@ -81,7 +89,7 @@ final class SwipeSimulator {
         self.eventTapIsRunning = true
     }
 
-    private func fakeSwipe(direction: TLInfoSwipeDirection) {
+    private func fakeSwipe(direction: TLInfoSwipeDirection, proxy: CGEventTapProxy) {
         let eventBegin: CGEvent = tl_CGEventCreateFromGesture(self.swipeBegin as CFDictionary,
                                                               [] as CFArray).takeRetainedValue()
 
@@ -96,24 +104,37 @@ final class SwipeSimulator {
         }
 
         guard let eventSwipe else { return }
-        eventBegin.post(tap: .cghidEventTap)
-        eventSwipe.post(tap: .cghidEventTap)
+        eventBegin.tapPostEvent(proxy)
+        eventSwipe.tapPostEvent(proxy)
     }
 
-    fileprivate func handleMouseEvent(type: CGEventType, cgEvent: CGEvent) -> CGEvent? {
-        guard type == .otherMouseDown && self.isValidApplication() else {
+    private var debounceWorkItem: DispatchWorkItem?
+
+    fileprivate func handleMouseEvent(type: CGEventType, cgEvent: CGEvent, proxy: CGEventTapProxy) -> CGEvent? {
+
+        debounceWorkItem?.cancel()
+
+        guard eventTypes.contains(type) && self.isValidApplication() else {
             return cgEvent
         }
 
         let number = CGEvent.getIntegerValueField(cgEvent)(.mouseEventButtonNumber)
-        if number == 3 {
-            self.fakeSwipe(direction: TLInfoSwipeDirection(kTLInfoSwipeLeft))
-            return nil
-        } else if number == 4 {
-            self.fakeSwipe(direction: TLInfoSwipeDirection(kTLInfoSwipeRight))
-            return nil
+
+        let workItem = DispatchWorkItem { [weak self, cgEvent] in
+            guard let self else { return }
+            switch (type, number) {
+                case (.otherMouseUp, 3):
+                    fakeSwipe(direction: TLInfoSwipeDirection(kTLInfoSwipeLeft), proxy: proxy)
+                case (.otherMouseUp, 4):
+                    fakeSwipe(direction: TLInfoSwipeDirection(kTLInfoSwipeRight), proxy: proxy)
+                default:
+                    cgEvent.tapPostEvent(proxy)
+            }
         }
-        return cgEvent
+
+        debounceWorkItem = workItem
+        DispatchQueue.main.asyncAfter(deadline: .now() + .milliseconds(30), execute: workItem)
+        return nil
     }
 }
 
@@ -122,7 +143,7 @@ fileprivate func mouseEventCallBack(proxy: CGEventTapProxy,
                                     type: CGEventType,
                                     cgEvent: CGEvent,
                                     userInfo: UnsafeMutableRawPointer?) -> Unmanaged<CGEvent>? {
-    guard let cgEvent = SwipeSimulator.shared.handleMouseEvent(type: type, cgEvent: cgEvent) else { return nil }
+    guard let cgEvent = SwipeSimulator.shared.handleMouseEvent(type: type, cgEvent: cgEvent, proxy: proxy) else { return nil }
     return Unmanaged.passRetained(cgEvent)
 }
 
@@ -139,3 +160,10 @@ fileprivate extension TLInfoSwipeDirection {
     }
 }
 // swiftlint:enable private_over_fileprivate
+
+private extension CGEventMask {
+
+    static func from(events: [CGEventType]) -> CGEventMask {
+        events.reduce(0) { $0 | (1 << $1.rawValue) }
+    }
+}

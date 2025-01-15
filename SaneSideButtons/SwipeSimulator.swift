@@ -64,10 +64,12 @@ final class SwipeSimulator {
     }
 
     private let eventTypes: [CGEventType] = [
-        .leftMouseDown,
-        .leftMouseUp,
-        .rightMouseDown,
-        .rightMouseUp,
+        // these cause issues with drag scroll in simulators
+        // and for some reason the app is not able to ignore them
+        // .leftMouseDown,
+        // .leftMouseUp,
+        // .rightMouseDown,
+        // .rightMouseUp,
         .otherMouseDown,
         .otherMouseUp,
     ]

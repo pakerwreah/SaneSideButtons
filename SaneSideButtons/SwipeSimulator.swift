@@ -64,12 +64,6 @@ final class SwipeSimulator {
     }
 
     private let eventTypes: [CGEventType] = [
-        // these cause issues with drag scroll in simulators
-        // and for some reason the app is not able to ignore them
-        // .leftMouseDown,
-        // .leftMouseUp,
-        // .rightMouseDown,
-        // .rightMouseUp,
         .otherMouseDown,
         .otherMouseUp,
     ]
@@ -116,7 +110,7 @@ final class SwipeSimulator {
 
         debounceWorkItem?.cancel()
 
-        guard eventTypes.contains(type) && self.isValidApplication() else {
+        guard type == .otherMouseDown && self.isValidApplication() else {
             return cgEvent
         }
 
@@ -124,10 +118,10 @@ final class SwipeSimulator {
 
         let workItem = DispatchWorkItem { [weak self, cgEvent] in
             guard let self else { return }
-            switch (type, number) {
-                case (.otherMouseUp, 3):
+            switch number {
+                case 3:
                     fakeSwipe(direction: TLInfoSwipeDirection(kTLInfoSwipeLeft), proxy: proxy)
-                case (.otherMouseUp, 4):
+                case 4:
                     fakeSwipe(direction: TLInfoSwipeDirection(kTLInfoSwipeRight), proxy: proxy)
                 default:
                     cgEvent.tapPostEvent(proxy)
